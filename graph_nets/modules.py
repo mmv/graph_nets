@@ -51,7 +51,6 @@ from __future__ import division
 from __future__ import print_function
 
 from graph_nets import blocks
-import sonnet as snt
 import tensorflow as tf
 
 _DEFAULT_EDGE_BLOCK_OPT = {
@@ -75,7 +74,7 @@ _DEFAULT_GLOBAL_BLOCK_OPT = {
 }
 
 
-class InteractionNetwork(snt.AbstractModule):
+class InteractionNetwork(tf.keras.models.Model):
   """Implementation of an Interaction Network.
 
   An interaction networks computes interactions on the edges based on the
@@ -109,16 +108,15 @@ class InteractionNetwork(snt.AbstractModule):
     """
     super(InteractionNetwork, self).__init__(name=name)
 
-    with self._enter_variable_scope():
-      self._edge_block = blocks.EdgeBlock(
-          edge_model_fn=edge_model_fn, use_globals=False)
-      self._node_block = blocks.NodeBlock(
-          node_model_fn=node_model_fn,
-          use_sent_edges=False,
-          use_globals=False,
-          received_edges_reducer=reducer)
+    self._edge_block = blocks.EdgeBlock(
+        edge_model_fn=edge_model_fn, use_globals=False)
+    self._node_block = blocks.NodeBlock(
+        node_model_fn=node_model_fn,
+        use_sent_edges=False,
+        use_globals=False,
+        received_edges_reducer=reducer)
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the InterationNetwork.
 
     Args:
@@ -137,7 +135,7 @@ class InteractionNetwork(snt.AbstractModule):
     return self._node_block(self._edge_block(graph))
 
 
-class RelationNetwork(snt.AbstractModule):
+class RelationNetwork(tf.keras.models.Model):
   """Implementation of a Relation Network.
 
   See https://arxiv.org/abs/1706.01427 for more details.
@@ -167,22 +165,21 @@ class RelationNetwork(snt.AbstractModule):
     """
     super(RelationNetwork, self).__init__(name=name)
 
-    with self._enter_variable_scope():
-      self._edge_block = blocks.EdgeBlock(
-          edge_model_fn=edge_model_fn,
-          use_edges=False,
-          use_receiver_nodes=True,
-          use_sender_nodes=True,
-          use_globals=False)
+    self._edge_block = blocks.EdgeBlock(
+        edge_model_fn=edge_model_fn,
+        use_edges=False,
+        use_receiver_nodes=True,
+        use_sender_nodes=True,
+        use_globals=False)
 
-      self._global_block = blocks.GlobalBlock(
-          global_model_fn=global_model_fn,
-          use_edges=True,
-          use_nodes=False,
-          use_globals=False,
-          edges_reducer=reducer)
+    self._global_block = blocks.GlobalBlock(
+        global_model_fn=global_model_fn,
+        use_edges=True,
+        use_nodes=False,
+        use_globals=False,
+        edges_reducer=reducer)
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the RelationNetwork.
 
     Args:
@@ -228,7 +225,7 @@ def _make_default_global_block_opt(global_block_opt, default_reducer):
   return global_block_opt
 
 
-class GraphNetwork(snt.AbstractModule):
+class GraphNetwork(tf.keras.models.Model):
   """Implementation of a Graph Network.
 
   See https://arxiv.org/abs/1806.01261 for more details.
@@ -277,15 +274,14 @@ class GraphNetwork(snt.AbstractModule):
     node_block_opt = _make_default_node_block_opt(node_block_opt, reducer)
     global_block_opt = _make_default_global_block_opt(global_block_opt, reducer)
 
-    with self._enter_variable_scope():
-      self._edge_block = blocks.EdgeBlock(
-          edge_model_fn=edge_model_fn, **edge_block_opt)
-      self._node_block = blocks.NodeBlock(
-          node_model_fn=node_model_fn, **node_block_opt)
-      self._global_block = blocks.GlobalBlock(
-          global_model_fn=global_model_fn, **global_block_opt)
+    self._edge_block = blocks.EdgeBlock(
+        edge_model_fn=edge_model_fn, **edge_block_opt)
+    self._node_block = blocks.NodeBlock(
+        node_model_fn=node_model_fn, **node_block_opt)
+    self._global_block = blocks.GlobalBlock(
+        global_model_fn=global_model_fn, **global_block_opt)
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the GraphNetwork.
 
     Args:
@@ -301,7 +297,7 @@ class GraphNetwork(snt.AbstractModule):
     return self._global_block(self._node_block(self._edge_block(graph)))
 
 
-class GraphIndependent(snt.AbstractModule):
+class GraphIndependent(tf.keras.models.Model):
   """A graph block that applies models to the graph elements independently.
 
   The inputs and outputs are graphs. The corresponding models are applied to
@@ -331,27 +327,29 @@ class GraphIndependent(snt.AbstractModule):
     """
     super(GraphIndependent, self).__init__(name=name)
 
-    with self._enter_variable_scope():
-      # The use of snt.Module below is to ensure the ops and variables that
-      # result from the edge/node/global_model_fns are scoped analogous to how
-      # the Edge/Node/GlobalBlock classes do.
-      if edge_model_fn is None:
-        self._edge_model = lambda x: x
-      else:
-        self._edge_model = snt.Module(
-            lambda x: edge_model_fn()(x), name="edge_model")  # pylint: disable=unnecessary-lambda
-      if node_model_fn is None:
-        self._node_model = lambda x: x
-      else:
-        self._node_model = snt.Module(
-            lambda x: node_model_fn()(x), name="node_model")  # pylint: disable=unnecessary-lambda
-      if global_model_fn is None:
-        self._global_model = lambda x: x
-      else:
-        self._global_model = snt.Module(
-            lambda x: global_model_fn()(x), name="global_model")  # pylint: disable=unnecessary-lambda
+    # The use of snt.Module below is to ensure the ops and variables that
+    # result from the edge/node/global_model_fns are scoped analogous to how
+    # the Edge/Node/GlobalBlock classes do.
+    if edge_model_fn is None:
+      self._edge_model = lambda x: x
+    else:
+      # self._edge_model = snt.Module(
+      #     lambda x: edge_model_fn()(x), name="edge_model")  # pylint: disable=unnecessary-lambda
+      self._edge_model = edge_model_fn()
+    if node_model_fn is None:
+      self._node_model = lambda x: x
+    else:
+      # self._node_model = snt.Module(
+      #     lambda x: node_model_fn()(x), name="node_model")  # pylint: disable=unnecessary-lambda
+      self._node_model = node_model_fn()
+    if global_model_fn is None:
+      self._global_model = lambda x: x
+    else:
+      # self._global_model = snt.Module(
+      #     lambda x: global_model_fn()(x), name="global_model")  # pylint: disable=unnecessary-lambda
+      self._global_model = global_model_fn()
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the GraphIndependent.
 
     Args:
@@ -368,7 +366,7 @@ class GraphIndependent(snt.AbstractModule):
         globals=self._global_model(graph.globals))
 
 
-class DeepSets(snt.AbstractModule):
+class DeepSets(tf.keras.models.Model):
   """DeepSets module.
 
   Implementation for the model described in https://arxiv.org/abs/1703.06114
@@ -417,21 +415,20 @@ class DeepSets(snt.AbstractModule):
     """
     super(DeepSets, self).__init__(name=name)
 
-    with self._enter_variable_scope():
-      self._node_block = blocks.NodeBlock(
-          node_model_fn=node_model_fn,
-          use_received_edges=False,
-          use_sent_edges=False,
-          use_nodes=True,
-          use_globals=True)
-      self._global_block = blocks.GlobalBlock(
-          global_model_fn=global_model_fn,
-          use_edges=False,
-          use_nodes=True,
-          use_globals=False,
-          nodes_reducer=reducer)
+    self._node_block = blocks.NodeBlock(
+        node_model_fn=node_model_fn,
+        use_received_edges=False,
+        use_sent_edges=False,
+        use_nodes=True,
+        use_globals=True)
+    self._global_block = blocks.GlobalBlock(
+        global_model_fn=global_model_fn,
+        use_edges=False,
+        use_nodes=True,
+        use_globals=False,
+        nodes_reducer=reducer)
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the DeepSets network.
 
     Args:
@@ -447,7 +444,7 @@ class DeepSets(snt.AbstractModule):
     return self._global_block(self._node_block(graph))
 
 
-class CommNet(snt.AbstractModule):
+class CommNet(tf.keras.models.Model):
   """CommNet module.
 
   Implementation for the model originally described in
@@ -490,33 +487,32 @@ class CommNet(snt.AbstractModule):
     """
     super(CommNet, self).__init__(name=name)
 
-    with self._enter_variable_scope():
-      # Computes $\Psi_{com}(x_j)$ in Eq. (2) of 1706.06122
-      self._edge_block = blocks.EdgeBlock(
-          edge_model_fn=edge_model_fn,
-          use_edges=False,
-          use_receiver_nodes=False,
-          use_sender_nodes=True,
-          use_globals=False)
-      # Computes $\Phi(x_i)$ in Eq. (2) of 1706.06122
-      self._node_encoder_block = blocks.NodeBlock(
-          node_model_fn=node_encoder_model_fn,
-          use_received_edges=False,
-          use_sent_edges=False,
-          use_nodes=True,
-          use_globals=False,
-          received_edges_reducer=reducer,
-          name="node_encoder_block")
-      # Computes $\Theta(..)$ in Eq.(2) of 1706.06122
-      self._node_block = blocks.NodeBlock(
-          node_model_fn=node_model_fn,
-          use_received_edges=True,
-          use_sent_edges=False,
-          use_nodes=True,
-          use_globals=False,
-          received_edges_reducer=reducer)
+    # Computes $\Psi_{com}(x_j)$ in Eq. (2) of 1706.06122
+    self._edge_block = blocks.EdgeBlock(
+        edge_model_fn=edge_model_fn,
+        use_edges=False,
+        use_receiver_nodes=False,
+        use_sender_nodes=True,
+        use_globals=False)
+    # Computes $\Phi(x_i)$ in Eq. (2) of 1706.06122
+    self._node_encoder_block = blocks.NodeBlock(
+        node_model_fn=node_encoder_model_fn,
+        use_received_edges=False,
+        use_sent_edges=False,
+        use_nodes=True,
+        use_globals=False,
+        received_edges_reducer=reducer,
+        name="node_encoder_block")
+    # Computes $\Theta(..)$ in Eq.(2) of 1706.06122
+    self._node_block = blocks.NodeBlock(
+        node_model_fn=node_model_fn,
+        use_received_edges=True,
+        use_sent_edges=False,
+        use_nodes=True,
+        use_globals=False,
+        received_edges_reducer=reducer)
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the CommNet network.
 
     Args:
@@ -590,7 +586,7 @@ def _received_edges_normalizer(graph,
         num_segments=tf.reduce_sum(graph.n_node))
 
 
-class SelfAttention(snt.AbstractModule):
+class SelfAttention(tf.keras.models.Model):
   """Multi-head self-attention module.
 
   The module is based on the following three papers:
@@ -626,7 +622,7 @@ class SelfAttention(snt.AbstractModule):
     super(SelfAttention, self).__init__(name=name)
     self._normalizer = _unsorted_segment_softmax
 
-  def _build(self, node_values, node_keys, node_queries, attention_graph):
+  def call(self, node_values, node_keys, node_queries, attention_graph):
     """Connects the multi-head self-attention module.
 
     The self-attention is only computed according to the connectivity of the

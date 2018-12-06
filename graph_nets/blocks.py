@@ -35,7 +35,6 @@ from __future__ import print_function
 
 from graph_nets import graphs
 from graph_nets import utils_tf
-import sonnet as snt
 import tensorflow as tf
 
 
@@ -157,7 +156,7 @@ def broadcast_receiver_nodes_to_edges(
     return tf.gather(graph.nodes, graph.receivers)
 
 
-class EdgesToGlobalsAggregator(snt.AbstractModule):
+class EdgesToGlobalsAggregator(tf.keras.models.Model):
   """Aggregates all edges into globals."""
 
   def __init__(self, reducer, name="edges_to_globals_aggregator"):
@@ -184,7 +183,7 @@ class EdgesToGlobalsAggregator(snt.AbstractModule):
     super(EdgesToGlobalsAggregator, self).__init__(name=name)
     self._reducer = reducer
 
-  def _build(self, graph):
+  def call(self, graph):
     _validate_graph(graph, (EDGES,),
                     additional_message="when aggregating from edges.")
     num_graphs = utils_tf.get_num_graphs(graph)
@@ -193,7 +192,7 @@ class EdgesToGlobalsAggregator(snt.AbstractModule):
     return self._reducer(graph.edges, indices, num_graphs)
 
 
-class NodesToGlobalsAggregator(snt.AbstractModule):
+class NodesToGlobalsAggregator(tf.keras.models.Model):
   """Aggregates all nodes into globals."""
 
   def __init__(self, reducer, name="nodes_to_globals_aggregator"):
@@ -220,7 +219,7 @@ class NodesToGlobalsAggregator(snt.AbstractModule):
     super(NodesToGlobalsAggregator, self).__init__(name=name)
     self._reducer = reducer
 
-  def _build(self, graph):
+  def call(self, graph):
     _validate_graph(graph, (NODES,),
                     additional_message="when aggregating from nodes.")
     num_graphs = utils_tf.get_num_graphs(graph)
@@ -229,7 +228,7 @@ class NodesToGlobalsAggregator(snt.AbstractModule):
     return self._reducer(graph.nodes, indices, num_graphs)
 
 
-class _EdgesToNodesAggregator(snt.AbstractModule):
+class _EdgesToNodesAggregator(tf.keras.models.Model):
   """Agregates sent or received edges into the corresponding nodes."""
 
   def __init__(self, reducer, use_sent_edges=False,
@@ -238,7 +237,7 @@ class _EdgesToNodesAggregator(snt.AbstractModule):
     self._reducer = reducer
     self._use_sent_edges = use_sent_edges
 
-  def _build(self, graph):
+  def call(self, graph):
     _validate_graph(graph, (EDGES, SENDERS, RECEIVERS,),
                     additional_message="when aggregating from edges.")
     num_nodes = tf.reduce_sum(graph.n_node)
@@ -360,7 +359,7 @@ def unsorted_segment_max_or_zero(values, indices, num_groups,
         tf.unsorted_segment_max, values, indices, num_groups)
 
 
-class EdgeBlock(snt.AbstractModule):
+class EdgeBlock(tf.keras.models.Model):
   """Edge block.
 
   A block that updates the features of each edge in a batch of graphs based on
@@ -386,7 +385,7 @@ class EdgeBlock(snt.AbstractModule):
         a `Tensor` (of concatenated input features for each edge) and return a
         `Tensor` (of output features for each edge). Typically, this module
         would input and output `Tensor`s of rank 2, but it may also be input or
-        output larger ranks. See the `_build` method documentation for more
+        output larger ranks. See the `call` method documentation for more
         details on the acceptable inputs to this module in that case.
       use_edges: (bool, default=True). Whether to condition on edge attributes.
       use_receiver_nodes: (bool, default=True). Whether to condition on receiver
@@ -411,10 +410,9 @@ class EdgeBlock(snt.AbstractModule):
     self._use_sender_nodes = use_sender_nodes
     self._use_globals = use_globals
 
-    with self._enter_variable_scope():
-      self._edge_model = edge_model_fn()
+    self._edge_model = edge_model_fn()
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the edge block.
 
     Args:
@@ -455,7 +453,7 @@ class EdgeBlock(snt.AbstractModule):
     return graph.replace(edges=updated_edges)
 
 
-class NodeBlock(snt.AbstractModule):
+class NodeBlock(tf.keras.models.Model):
   """Node block.
 
   A block that updates the features of each node in batch of graphs based on
@@ -483,7 +481,7 @@ class NodeBlock(snt.AbstractModule):
         a `Tensor` (of concatenated input features for each node) and return a
         `Tensor` (of output features for each node). Typically, this module
         would input and output `Tensor`s of rank 2, but it may also be input or
-        output larger ranks. See the `_build` method documentation for more
+        output larger ranks. See the `call` method documentation for more
         details on the acceptable inputs to this module in that case.
       use_received_edges: (bool, default=True) Whether to condition on
         aggregated edges received by each node.
@@ -515,24 +513,23 @@ class NodeBlock(snt.AbstractModule):
     self._use_nodes = use_nodes
     self._use_globals = use_globals
 
-    with self._enter_variable_scope():
-      self._node_model = node_model_fn()
-      if self._use_received_edges:
-        if received_edges_reducer is None:
-          raise ValueError(
-              "If `use_received_edges==True`, `received_edges_reducer` "
-              "should not be None.")
-        self._received_edges_aggregator = ReceivedEdgesToNodesAggregator(
-            received_edges_reducer)
-      if self._use_sent_edges:
-        if sent_edges_reducer is None:
-          raise ValueError(
-              "If `use_sent_edges==True`, `sent_edges_reducer` "
-              "should not be None.")
-        self._sent_edges_aggregator = SentEdgesToNodesAggregator(
-            sent_edges_reducer)
+    self._node_model = node_model_fn()
+    if self._use_received_edges:
+      if received_edges_reducer is None:
+        raise ValueError(
+            "If `use_received_edges==True`, `received_edges_reducer` "
+            "should not be None.")
+      self._received_edges_aggregator = ReceivedEdgesToNodesAggregator(
+          received_edges_reducer)
+    if self._use_sent_edges:
+      if sent_edges_reducer is None:
+        raise ValueError(
+            "If `use_sent_edges==True`, `sent_edges_reducer` "
+            "should not be None.")
+      self._sent_edges_aggregator = SentEdgesToNodesAggregator(
+          sent_edges_reducer)
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the node block.
 
     Args:
@@ -565,7 +562,7 @@ class NodeBlock(snt.AbstractModule):
     return graph.replace(nodes=updated_nodes)
 
 
-class GlobalBlock(snt.AbstractModule):
+class GlobalBlock(tf.keras.models.Model):
   """Global block.
 
   A block that updates the global features of each graph in a batch based on
@@ -592,7 +589,7 @@ class GlobalBlock(snt.AbstractModule):
         take a `Tensor` (of concatenated input features) and return a `Tensor`
         (the global output features). Typically, this module would input and
         output `Tensor`s of rank 2, but it may also input or output larger
-        ranks. See the `_build` method documentation for more details on the
+        ranks. See the `call` method documentation for more details on the
         acceptable inputs to this module in that case.
       use_edges: (bool, default=True) Whether to condition on aggregated edges.
       use_nodes: (bool, default=True) Whether to condition on node attributes.
@@ -618,22 +615,21 @@ class GlobalBlock(snt.AbstractModule):
     self._use_nodes = use_nodes
     self._use_globals = use_globals
 
-    with self._enter_variable_scope():
-      self._global_model = global_model_fn()
-      if self._use_edges:
-        if edges_reducer is None:
-          raise ValueError(
-              "If `use_edges==True`, `edges_reducer` should not be None.")
-        self._edges_aggregator = EdgesToGlobalsAggregator(
-            edges_reducer)
-      if self._use_nodes:
-        if nodes_reducer is None:
-          raise ValueError(
-              "If `use_nodes==True`, `nodes_reducer` should not be None.")
-        self._nodes_aggregator = NodesToGlobalsAggregator(
-            nodes_reducer)
+    self._global_model = global_model_fn()
+    if self._use_edges:
+      if edges_reducer is None:
+        raise ValueError(
+            "If `use_edges==True`, `edges_reducer` should not be None.")
+      self._edges_aggregator = EdgesToGlobalsAggregator(
+          edges_reducer)
+    if self._use_nodes:
+      if nodes_reducer is None:
+        raise ValueError(
+            "If `use_nodes==True`, `nodes_reducer` should not be None.")
+      self._nodes_aggregator = NodesToGlobalsAggregator(
+          nodes_reducer)
 
-  def _build(self, graph):
+  def call(self, graph):
     """Connects the global block.
 
     Args:
