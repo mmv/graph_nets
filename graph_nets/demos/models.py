@@ -32,8 +32,7 @@ class MLPModel(tf.keras.models.Model):
     final_activation = 'relu' if activate_final else None
     self.linear_layers += [tf.keras.layers.Dense(sizes[-1], activation=final_activation)]
     if layer_norm:
-      # TODO: original sonnet-based code user LayrerNorm instead of BatchNorm
-      self.ln = tf.keras.layers.BatchNormalization()
+      self.ln = LayerNormalization()
     else:
       self.ln = None
 
@@ -45,6 +44,27 @@ class MLPModel(tf.keras.models.Model):
     return x
 
 
+class LayerNormalization(tf.keras.layers.Layer):
+  """Implementation of Layer Normalization as described in https://arxiv.org/abs/1607.06450
+  """
+  def __init__(self, epsilon=1e-6, **kwargs):
+    super().__init__(**kwargs)
+    self.epsilon = epsilon
+
+  def build(self, input_shape):
+    super().build(input_shape)
+    self.gamma = self.add_weight(name='gamma', shape=input_shape[-1:],
+                                initializer="ones", trainable=True)
+    self.beta = self.add_weight(name='beta', shape=input_shape[-1:],
+                                initializer="zeros", trainable=True)
+
+  def call(self, x):
+    mean = tf.reduce_mean(x, axis=-1, keepdims=True)
+    std = tf.keras.backend.std(x, axis=-1, keepdims=True)
+    return self.gamma * (x - mean) / (std + self.epsilon) + self.beta
+
+  def compute_output_shape(self, input_shape):
+    return input_shape
 
 def make_mlp_model():
   """Instantiates a new MLP, followed by LayerNorm.
