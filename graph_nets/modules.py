@@ -89,7 +89,7 @@ class InteractionNetwork(tf.keras.models.Model):
   def __init__(self,
                edge_model_fn,
                node_model_fn,
-               reducer=tf.unsorted_segment_sum,
+               reducer=tf.math.unsorted_segment_sum,
                name="interaction_network"):
     """Initializes the InteractionNetwork module.
 
@@ -103,7 +103,7 @@ class InteractionNetwork(tf.keras.models.Model):
         per-node computations. The callable must return a Sonnet module (or
         equivalent; see `blocks.NodeBlock` for details).
       reducer: Reducer to be used by NodeBlock to aggregate edges. Defaults to
-        tf.unsorted_segment_sum.
+        tf.math.unsorted_segment_sum.
       name: The module name.
     """
     super(InteractionNetwork, self).__init__(name=name)
@@ -148,7 +148,7 @@ class RelationNetwork(tf.keras.models.Model):
   def __init__(self,
                edge_model_fn,
                global_model_fn,
-               reducer=tf.unsorted_segment_sum,
+               reducer=tf.math.unsorted_segment_sum,
                name="relation_network"):
     """Initializes the RelationNetwork module.
 
@@ -160,7 +160,7 @@ class RelationNetwork(tf.keras.models.Model):
         per-global computations. The callable must return a Sonnet module (or
         equivalent; see GlobalBlock for details).
       reducer: Reducer to be used by GlobalBlock to aggregate edges. Defaults to
-        tf.unsorted_segment_sum.
+        tf.math.unsorted_segment_sum.
       name: The module name.
     """
     super(RelationNetwork, self).__init__(name=name)
@@ -235,7 +235,7 @@ class GraphNetwork(tf.keras.models.Model):
                edge_model_fn,
                node_model_fn,
                global_model_fn,
-               reducer=tf.unsorted_segment_sum,
+               reducer=tf.math.unsorted_segment_sum,
                edge_block_opt=None,
                node_block_opt=None,
                global_block_opt=None,
@@ -253,7 +253,7 @@ class GraphNetwork(tf.keras.models.Model):
         per-global computations. The callable must return a Sonnet module (or
         equivalent; see GlobalBlock for details).
       reducer: Reducer to be used by NodeBlock and GlobalBlock to to aggregate
-        nodes and edges. Defaults to tf.unsorted_segment_sum. This will be
+        nodes and edges. Defaults to tf.math.unsorted_segment_sum. This will be
         overridden by the reducers specified in `node_block_opt` and
         `global_block_opt`, if any.
       edge_block_opt: Additional options to be passed to the EdgeBlock. Can
@@ -397,7 +397,7 @@ class DeepSets(tf.keras.models.Model):
   def __init__(self,
                node_model_fn,
                global_model_fn,
-               reducer=tf.unsorted_segment_sum,
+               reducer=tf.math.unsorted_segment_sum,
                name="deep_sets"):
     """Initializes the DeepSets module.
 
@@ -410,7 +410,7 @@ class DeepSets(tf.keras.models.Model):
         return a Sonnet module (or equivalent; see GlobalBlock for details).
       reducer: Reduction to be used when aggregating the nodes in the globals.
         This should be a callable whose signature matches
-        tf.unsorted_segment_sum.
+        tf.math.unsorted_segment_sum.
       name: The module name.
     """
     super(DeepSets, self).__init__(name=name)
@@ -466,7 +466,7 @@ class CommNet(tf.keras.models.Model):
                edge_model_fn,
                node_encoder_model_fn,
                node_model_fn,
-               reducer=tf.unsorted_segment_sum,
+               reducer=tf.math.unsorted_segment_sum,
                name="comm_net"):
     """Initializes the CommNet module.
 
@@ -482,7 +482,7 @@ class CommNet(tf.keras.models.Model):
         return a Sonnet module (or equivalent; see NodeBlock for details).
       reducer: Reduction to be used when aggregating the edges in the nodes.
         This should be a callable whose signature matches
-        tf.unsorted_segment_sum.
+        tf.math.unsorted_segment_sum.
       name: The module name.
     """
     super(CommNet, self).__init__(name=name)
@@ -536,7 +536,7 @@ def _unsorted_segment_softmax(data,
                               name="unsorted_segment_softmax"):
   """Performs an elementwise softmax operation along segments of a tensor.
 
-  The input parameters are analogous to `tf.unsorted_segment_sum`. It produces
+  The input parameters are analogous to `tf.math.unsorted_segment_sum`. It produces
   an output of the same shape as the input data, after performing an
   elementwise sofmax operation between all of the rows with common segment id.
 
@@ -553,12 +553,12 @@ def _unsorted_segment_softmax(data,
 
   """
   with tf.name_scope(name):
-    segment_maxes = tf.unsorted_segment_max(data, segment_ids, num_segments)
+    segment_maxes = tf.math.unsorted_segment_max(data, segment_ids, num_segments)
     maxes = tf.gather(segment_maxes, segment_ids)
     # Possibly refactor to `tf.stop_gradient(maxes)` for better performance.
     data -= maxes
     exp_data = tf.exp(data)
-    segment_sum_exp_data = tf.unsorted_segment_sum(exp_data, segment_ids,
+    segment_sum_exp_data = tf.math.unsorted_segment_sum(exp_data, segment_ids,
                                                    num_segments)
     sum_exp_data = tf.gather(segment_sum_exp_data, segment_ids)
     return exp_data / sum_exp_data
@@ -678,7 +678,7 @@ class SelfAttention(tf.keras.models.Model):
     # Summing all of the attended values from each node.
     # [total_num_nodes, num_heads, embedding_size]
     received_edges_aggregator = blocks.ReceivedEdgesToNodesAggregator(
-        reducer=tf.unsorted_segment_sum)
+        reducer=tf.math.unsorted_segment_sum)
     aggregated_attended_values = received_edges_aggregator(
         attention_graph.replace(edges=attented_edges))
 

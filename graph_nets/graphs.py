@@ -149,12 +149,12 @@ class GraphsTuple(
           "Field `edges` must be None as field `receivers` and `senders` are "
           "None")
 
-  def __init__(self, *args, **kwargs):
-    del args, kwargs
-    # The fields of a `namedtuple` are filled in the `__new__` method.
-    # `__init__` does not accept parameters.
-    super(GraphsTuple, self).__init__()
-    self._validate_none_fields()
+  # def __init__(self, *args, **kwargs):
+  #   del args, kwargs
+  #   # The fields of a `namedtuple` are filled in the `__new__` method.
+  #   # `__init__` does not accept parameters.
+  #   super(GraphsTuple, self).__init__()
+  #   self._validate_none_fields()
 
   def replace(self, **kwargs):
     output = self._replace(**kwargs)

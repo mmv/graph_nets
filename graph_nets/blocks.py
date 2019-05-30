@@ -169,9 +169,9 @@ class EdgesToGlobalsAggregator(tf.keras.models.Model):
     under permutation of edge features within each graph.
 
     Examples of compatible reducers are:
-    * tf.unsorted_segment_sum
-    * tf.unsorted_segment_mean
-    * tf.unsorted_segment_prod
+    * tf.math.unsorted_segment_sum
+    * tf.math.unsorted_segment_mean
+    * tf.math.unsorted_segment_prod
     * unsorted_segment_min_or_zero
     * unsorted_segment_max_or_zero
 
@@ -205,9 +205,9 @@ class NodesToGlobalsAggregator(tf.keras.models.Model):
     under permutation of node features within each graph.
 
     Examples of compatible reducers are:
-    * tf.unsorted_segment_sum
-    * tf.unsorted_segment_mean
-    * tf.unsorted_segment_prod
+    * tf.math.unsorted_segment_sum
+    * tf.math.unsorted_segment_mean
+    * tf.math.unsorted_segment_prod
     * unsorted_segment_min_or_zero
     * unsorted_segment_max_or_zero
 
@@ -258,9 +258,9 @@ class SentEdgesToNodesAggregator(_EdgesToNodesAggregator):
     under permutation of edge features within each segment.
 
     Examples of compatible reducers are:
-    * tf.unsorted_segment_sum
-    * tf.unsorted_segment_mean
-    * tf.unsorted_segment_prod
+    * tf.math.unsorted_segment_sum
+    * tf.math.unsorted_segment_mean
+    * tf.math.unsorted_segment_prod
     * unsorted_segment_min_or_zero
     * unsorted_segment_max_or_zero
 
@@ -288,9 +288,9 @@ class ReceivedEdgesToNodesAggregator(_EdgesToNodesAggregator):
     under permutation of edge features within each segment.
 
     Examples of compatible reducers are:
-    * tf.unsorted_segment_sum
-    * tf.unsorted_segment_mean
-    * tf.unsorted_segment_prod
+    * tf.math.unsorted_segment_sum
+    * tf.math.unsorted_segment_mean
+    * tf.math.unsorted_segment_prod
     * unsorted_segment_min_or_zero
     * unsorted_segment_max_or_zero
 
@@ -306,7 +306,7 @@ class ReceivedEdgesToNodesAggregator(_EdgesToNodesAggregator):
 def _unsorted_segment_reduction_or_zero(reducer, values, indices, num_groups):
   """Common code for unsorted_segment_{min,max}_or_zero (below)."""
   reduced = reducer(values, indices, num_groups)
-  present_indices = tf.unsorted_segment_max(
+  present_indices = tf.math.unsorted_segment_max(
       tf.ones_like(indices, dtype=reduced.dtype), indices, num_groups)
   present_indices = tf.clip_by_value(present_indices, 0, 1)
   present_indices = tf.reshape(
@@ -320,7 +320,7 @@ def unsorted_segment_min_or_zero(values, indices, num_groups,
   """Aggregates information using elementwise min.
 
   Segments with no elements are given a "min" of zero instead of the most
-  positive finite value possible (which is what `tf.unsorted_segment_min`
+  positive finite value possible (which is what `tf.math.unsorted_segment_min`
   would do).
 
   Args:
@@ -334,7 +334,7 @@ def unsorted_segment_min_or_zero(values, indices, num_groups,
   """
   with tf.name_scope(name):
     return _unsorted_segment_reduction_or_zero(
-        tf.unsorted_segment_min, values, indices, num_groups)
+        tf.math.unsorted_segment_min, values, indices, num_groups)
 
 
 def unsorted_segment_max_or_zero(values, indices, num_groups,
@@ -342,7 +342,7 @@ def unsorted_segment_max_or_zero(values, indices, num_groups,
   """Aggregates information using elementwise max.
 
   Segments with no elements are given a "max" of zero instead of the most
-  negative finite value possible (which is what `tf.unsorted_segment_max` would
+  negative finite value possible (which is what `tf.math.unsorted_segment_max` would
   do).
 
   Args:
@@ -356,7 +356,7 @@ def unsorted_segment_max_or_zero(values, indices, num_groups,
   """
   with tf.name_scope(name):
     return _unsorted_segment_reduction_or_zero(
-        tf.unsorted_segment_max, values, indices, num_groups)
+        tf.math.unsorted_segment_max, values, indices, num_groups)
 
 
 class EdgeBlock(tf.keras.models.Model):
@@ -469,8 +469,8 @@ class NodeBlock(tf.keras.models.Model):
                use_sent_edges=False,
                use_nodes=True,
                use_globals=True,
-               received_edges_reducer=tf.unsorted_segment_sum,
-               sent_edges_reducer=tf.unsorted_segment_sum,
+               received_edges_reducer=tf.math.unsorted_segment_sum,
+               sent_edges_reducer=tf.math.unsorted_segment_sum,
                name="node_block"):
     """Initializes the NodeBlock module.
 
@@ -492,10 +492,10 @@ class NodeBlock(tf.keras.models.Model):
         attributes.
       received_edges_reducer: Reduction to be used when aggregating received
         edges. This should be a callable whose signature matches
-        `tf.unsorted_segment_sum`.
+        `tf.math.unsorted_segment_sum`.
       sent_edges_reducer: Reduction to be used when aggregating sent edges.
         This should be a callable whose signature matches
-        `tf.unsorted_segment_sum`.
+        `tf.math.unsorted_segment_sum`.
       name: The module name.
 
     Raises:
@@ -577,8 +577,8 @@ class GlobalBlock(tf.keras.models.Model):
                use_edges=True,
                use_nodes=True,
                use_globals=True,
-               nodes_reducer=tf.unsorted_segment_sum,
-               edges_reducer=tf.unsorted_segment_sum,
+               nodes_reducer=tf.math.unsorted_segment_sum,
+               edges_reducer=tf.math.unsorted_segment_sum,
                name="global_block"):
     """Initializes the GlobalBlock module.
 
@@ -596,9 +596,9 @@ class GlobalBlock(tf.keras.models.Model):
       use_globals: (bool, default=True) Whether to condition on global
         attributes.
       nodes_reducer: Reduction to be used when aggregating nodes. This should
-        be a callable whose signature matches tf.unsorted_segment_sum.
+        be a callable whose signature matches tf.math.unsorted_segment_sum.
       edges_reducer: Reduction to be used when aggregating edges. This should
-        be a callable whose signature matches tf.unsorted_segment_sum.
+        be a callable whose signature matches tf.math.unsorted_segment_sum.
       name: The module name.
 
     Raises:

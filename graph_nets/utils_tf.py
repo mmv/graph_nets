@@ -528,7 +528,7 @@ def repeat(tensor, repeats, axis=0, name="repeat"):
     range_ = tf.range(cumsum[-1])
 
     indicator_matrix = tf.cast(tf.expand_dims(range_, 1) >= cumsum, tf.int32)
-    indices = tf.reduce_sum(indicator_matrix, reduction_indices=1)
+    indices = tf.reduce_sum(indicator_matrix, axis=1)
 
     shifted_tensor = _axis_to_inside(tensor, axis)
     if shifted_tensor.dtype == tf.int32:
