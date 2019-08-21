@@ -134,6 +134,7 @@ class GraphsTuple(
 
   def _validate_none_fields(self):
     """Asserts that the set of `None` fields in the instance is valid."""
+      
     if self.n_node is None:
       raise ValueError("Field `n_node` cannot be None")
     if self.n_edge is None:
@@ -158,7 +159,7 @@ class GraphsTuple(
 
   def replace(self, **kwargs):
     output = self._replace(**kwargs)
-    output._validate_none_fields()  # pylint: disable=protected-access
+    # output._validate_none_fields()  # pylint: disable=protected-access
     return output
 
   def map(self, field_fn, fields=GRAPH_FEATURE_FIELDS):
